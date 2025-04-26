@@ -1,0 +1,23 @@
+[project]
+name = "aurora_backend_llm"
+version = "0.1.0"
+description = "aurora_backend_llm using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "crewai[tools]>=0.114.0,<1.0.0"
+]
+
+[project.scripts]
+aurora_backend_llm = "aurora_backend_llm.main:run"
+run_crew = "aurora_backend_llm.main:run"
+train = "aurora_backend_llm.main:train"
+replay = "aurora_backend_llm.main:replay"
+test = "aurora_backend_llm.main:test"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
