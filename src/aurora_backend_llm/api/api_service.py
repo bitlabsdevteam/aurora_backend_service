@@ -4,10 +4,15 @@ import uuid
 import os
 from contextlib import asynccontextmanager
 from typing import Dict, Any
+import asyncio  # Added for running sync code in executor
 
 import uvicorn
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel # Added for request body validation
+
+# Import the crew
+from aurora_backend_llm.crew import AuroraBackendLlm
 
 # Ensure logs directory exists
 os.makedirs(os.path.join(os.path.dirname(__file__), "../../../logs"), exist_ok=True)
@@ -22,6 +27,11 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger("aurora_api_service")
+
+# Define the request body model
+class AnalyzeRequest(BaseModel):
+    topic: str
+    current_year: int | None = None # Make current_year optional or provide a default
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,36 +101,61 @@ async def health_check():
 
 # Example CrewAI integration endpoint
 @app.post("/api/v1/analyze")
-async def analyze_data(data: Dict[str, Any]):
+async def analyze_data(request_data: AnalyzeRequest): # Changed to use Pydantic model
     """
-    Analyze data using CrewAI agents
-    
-    This endpoint accepts data for analysis and processes it using CrewAI agents.
-    Replace the mock implementation with actual CrewAI integration.
+    Analyze data using the AuroraBackendLlm CrewAI crew.
+
+    Accepts a 'topic' and optional 'current_year' to kick off the crew.
     """
-    logger.info(f"Analyze data endpoint called with data type: {type(data).__name__}")
-    
+    request_id = str(uuid.uuid4()) # Generate request ID here for logging
+    logger.info(f"Analyze data endpoint called (Request ID: {request_id}) with topic: {request_data.topic}")
+
+    # Prepare inputs for the crew
+    inputs = {
+        'topic': request_data.topic
+    }
+    # Add current_year if provided, otherwise CrewAI might use a default if configured
+    if request_data.current_year:
+        inputs['current_year'] = str(request_data.current_year) # Ensure it's a string if needed by config
+
+    # Define the synchronous function to run the crew
+    def run_crew_sync(crew_inputs: Dict[str, Any]):
+        try:
+            # Change directory to the crew's root to find config files
+            original_cwd = os.getcwd()
+            crew_root_dir = os.path.join(os.path.dirname(__file__), "..") # Assumes api_service.py is in src/aurora_backend_llm/api
+            os.chdir(crew_root_dir)
+            logger.info(f"Changed working directory to: {crew_root_dir} for crew execution")
+
+            aurora_crew = AuroraBackendLlm()
+            logger.info(f"Kicking off AuroraBackendLlm crew (Request ID: {request_id}) with inputs: {crew_inputs}")
+            result = aurora_crew.crew().kickoff(inputs=crew_inputs)
+            logger.info(f"AuroraBackendLlm crew finished successfully (Request ID: {request_id})")
+            return result
+        except Exception as e:
+            logger.error(f"Error running AuroraBackendLlm crew (Request ID: {request_id}): {str(e)}", exc_info=True)
+            # Reraise the exception so it can be caught by the main try/except block
+            raise
+        finally:
+            # Change back to the original directory
+            os.chdir(original_cwd)
+            logger.info(f"Restored working directory to: {original_cwd}")
+
+
     try:
-        # Mock implementation - replace with actual CrewAI integration
-        # Example:
-        # from your_crewai_module import analyze_with_crew
-        # result = analyze_with_crew(data)
-        
-        # Simulated processing time
-        time.sleep(0.5)
-        
+        # Run the synchronous crew kickoff in a thread pool executor
+        loop = asyncio.get_event_loop()
+        crew_result = await loop.run_in_executor(None, run_crew_sync, inputs)
+
         return {
-            "request_id": str(uuid.uuid4()),
+            "request_id": request_id,
             "status": "processed",
-            "results": {
-                "summary": "This is a mock analysis result. Replace with actual CrewAI output.",
-                "confidence": 0.92,
-                "processed_at": time.time()
-            }
+            "results": crew_result # Return the direct result from the crew
         }
     except Exception as e:
-        logger.error(f"Error analyzing data: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error processing analysis request")
+        # Log the specific error from run_crew_sync if it occurred
+        logger.error(f"Error processing analysis request (Request ID: {request_id}): {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error processing analysis request: {str(e)}")
 
 # Task management endpoints
 @app.get("/api/v1/tasks")

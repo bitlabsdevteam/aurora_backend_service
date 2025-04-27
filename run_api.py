@@ -24,7 +24,8 @@ def main():
     logger.info("Starting Aurora API Service")
     
     # Add src to the Python path if it's not already there
-    src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    src_path = os.path.join(current_path, "src")
     if src_path not in sys.path:
         sys.path.insert(0, src_path)
         logger.info(f"Added {src_path} to Python path")
