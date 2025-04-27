@@ -22,3 +22,14 @@ apparel_inventory_task:
     Make sure the report is detailed and contains any and all relevant information.
   expected_output: >
     A fully fledged report with the main topics, each with a full section of information.
+
+branch_manager_task:
+  description: >
+    Generate a comprehensive weekly report of stock inventory and forecast trends for replenishment at the select shop. Analyze current inventory, sales data, and market trends to provide actionable recommendations for restocking and optimizing product assortment.
+  expected_output: >
+    A markdown report including:
+      - Current inventory status by category
+      - Sales and stock movement trends
+      - Forecasted trends for the upcoming weeks
+      - Actionable recommendations for replenishment and stock optimization
+  agent: branch_manager
