@@ -3,8 +3,9 @@ import time
 import uuid
 import os
 from contextlib import asynccontextmanager
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import asyncio  # Added for running sync code in executor
+import argparse
 
 import uvicorn
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -28,16 +29,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("aurora_api_service")
 
-# Define the request body model
+# Define the request body models
 class AnalyzeRequest(BaseModel):
     topic: str
     current_year: int | None = None # Make current_year optional or provide a default
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Add any startup code here (DB connections, etc.)
+    # Startup: Add any startup code here
     logger.info("Aurora API Service is starting up")
+    
     yield
+    
     # Shutdown: Add any cleanup code here
     logger.info("Aurora API Service is shutting down")
 
@@ -101,7 +104,7 @@ async def health_check():
 
 # Example CrewAI integration endpoint
 @app.post("/api/v1/analyze")
-async def analyze_data(request_data: AnalyzeRequest): # Changed to use Pydantic model
+async def analyze_data(request_data: AnalyzeRequest):
     """
     Analyze data using the AuroraBackendLlm CrewAI crew.
 
@@ -119,7 +122,7 @@ async def analyze_data(request_data: AnalyzeRequest): # Changed to use Pydantic 
         inputs['current_year'] = str(request_data.current_year) # Ensure it's a string if needed by config
 
     # Define the synchronous function to run the crew
-    def run_crew_sync(crew_inputs: Dict[str, Any]):
+    def run_crew_sync(crew_inputs: Dict[str, Any], task_id: str):
         try:
             # Change directory to the crew's root to find config files
             original_cwd = os.getcwd()
@@ -128,12 +131,13 @@ async def analyze_data(request_data: AnalyzeRequest): # Changed to use Pydantic 
             logger.info(f"Changed working directory to: {crew_root_dir} for crew execution")
 
             aurora_crew = AuroraBackendLlm()
-            logger.info(f"Kicking off AuroraBackendLlm crew (Request ID: {request_id}) with inputs: {crew_inputs}")
+            logger.info(f"Kicking off AuroraBackendLlm crew (Request ID: {task_id}) with inputs: {crew_inputs}")
             result = aurora_crew.crew().kickoff(inputs=crew_inputs)
-            logger.info(f"AuroraBackendLlm crew finished successfully (Request ID: {request_id})")
+            logger.info(f"AuroraBackendLlm crew finished successfully (Request ID: {task_id})")
+            
             return result
         except Exception as e:
-            logger.error(f"Error running AuroraBackendLlm crew (Request ID: {request_id}): {str(e)}", exc_info=True)
+            logger.error(f"Error running AuroraBackendLlm crew (Request ID: {task_id}): {str(e)}", exc_info=True)
             # Reraise the exception so it can be caught by the main try/except block
             raise
         finally:
@@ -141,11 +145,10 @@ async def analyze_data(request_data: AnalyzeRequest): # Changed to use Pydantic 
             os.chdir(original_cwd)
             logger.info(f"Restored working directory to: {original_cwd}")
 
-
     try:
         # Run the synchronous crew kickoff in a thread pool executor
         loop = asyncio.get_event_loop()
-        crew_result = await loop.run_in_executor(None, run_crew_sync, inputs)
+        crew_result = await loop.run_in_executor(None, run_crew_sync, inputs, request_id)
 
         return {
             "request_id": request_id,
@@ -157,35 +160,23 @@ async def analyze_data(request_data: AnalyzeRequest): # Changed to use Pydantic 
         logger.error(f"Error processing analysis request (Request ID: {request_id}): {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing analysis request: {str(e)}")
 
-# Task management endpoints
-@app.get("/api/v1/tasks")
-async def get_tasks():
-    """Get list of running or completed tasks"""
-    logger.info("Get tasks endpoint called")
-    # Mock response - replace with actual implementation
-    return {
-        "tasks": [
-            {"id": "task-123", "status": "completed", "type": "analysis"},
-            {"id": "task-456", "status": "running", "type": "research"}
-        ]
-    }
-
-@app.get("/api/v1/tasks/{task_id}")
-async def get_task(task_id: str):
-    """Get details of a specific task"""
-    logger.info(f"Get task endpoint called for task_id: {task_id}")
-    # Mock response - replace with actual implementation
-    return {
-        "id": task_id,
-        "status": "completed",
-        "type": "analysis",
-        "started_at": time.time() - 3600,
-        "completed_at": time.time() - 1800,
-        "results": {
-            "summary": "This is a mock result for a specific task."
-        }
-    }
-
 if __name__ == "__main__":
-    logger.info("Starting Aurora API Service on port 3001")
-    uvicorn.run("aurora_backend_llm.api.api_service:app", host="0.0.0.0", port=3001, reload=False, workers=4, log_level="info") 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Aurora API Service")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to listen on")
+    parser.add_argument("--port", type=int, default=3001, help="Port to listen on")
+    parser.add_argument("--workers", type=int, default=4, help="Number of worker processes")
+    parser.add_argument("--log-level", default="info", help="Logging level")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+    
+    args = parser.parse_args()
+    
+    logger.info(f"Starting Aurora API Service on port {args.port} with {args.workers} workers")
+    uvicorn.run(
+        "aurora_backend_llm.api.api_service:app", 
+        host=args.host, 
+        port=args.port, 
+        reload=args.reload, 
+        workers=args.workers, 
+        log_level=args.log_level
+    ) 
