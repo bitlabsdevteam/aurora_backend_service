@@ -8,9 +8,16 @@ check_redis() {
   echo "Redis is ready"
 }
 
+# Function to check PostgreSQL
+check_postgres() {
+  echo "Checking PostgreSQL connection..."
+  pg_isready -h postgres -U postgres || exit 1
+  echo "PostgreSQL is ready"
+}
+
 # Main check loop
 echo "Waiting for services to be ready..."
-until check_redis; do
+until check_redis && check_postgres; do
   echo "Services not ready yet. Waiting..."
   sleep 2
 done

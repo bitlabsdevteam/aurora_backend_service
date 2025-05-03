@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     redis-tools \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Install UV for Python package management
@@ -16,12 +17,17 @@ RUN pip install uv
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
 COPY knowledge/ ./knowledge/
+COPY manage.py ./
 
 # Create config directory if not exists
 RUN mkdir -p src/aurora_backend_llm/config
 
 # Copy config files
 COPY src/aurora_backend_llm/config/ ./src/aurora_backend_llm/config/
+
+# Copy migration files
+COPY migrations/ ./migrations/
+COPY alembic.ini ./
 
 # Copy environment file
 COPY .env ./.env
