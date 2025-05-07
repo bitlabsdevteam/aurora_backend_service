@@ -122,6 +122,10 @@ app.mount("/api/auth/flask", WSGIMiddleware(flask_app))
 from aurora_backend_llm.api.pos_routes import router as pos_router
 app.include_router(pos_router)
 
+# Include SKUs fetch routes
+from aurora_backend_llm.api.skus_routes import router as skus_router
+app.include_router(skus_router)
+
 # Include Main routes for Langflow API
 from aurora_backend_llm.api.main_routes import router as main_router
 app.include_router(main_router)
