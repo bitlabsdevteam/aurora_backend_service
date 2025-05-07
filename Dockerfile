@@ -42,6 +42,9 @@ RUN uv pip install --system -e .
 # Install queue packages
 RUN uv pip install --system redis rq
 
+# Install astrapy package
+RUN pip install --upgrade astrapy
+
 # Create logs directory
 RUN mkdir -p logs
 

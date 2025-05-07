@@ -118,6 +118,14 @@ flask_app = create_flask_app()
 # Mount Flask app for authentication routes
 app.mount("/api/auth/flask", WSGIMiddleware(flask_app))
 
+# Include POS fetch routes
+from aurora_backend_llm.api.pos_routes import router as pos_router
+app.include_router(pos_router)
+
+# Include Main routes for Langflow API
+from aurora_backend_llm.api.main_routes import router as main_router
+app.include_router(main_router)
+
 # OAuth2 setup
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
