@@ -115,4 +115,44 @@ async def fetch_pos_sales_data(payload: Dict[str, Any] = Body(...)):
         return results
     except Exception as e:
         logger.error(f"Error fetching POS sales data: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.get("/sales/sku_sales_by_skuid/{sku_id}", response_model=List[POSSaleData])
+async def get_sku_sales_by_skuid(sku_id: str):
+    """
+    Fetch POS sales data for a specific SKU_ID.
+    
+    Args:
+        sku_id: The SKU identifier to filter sales data
+        
+    Returns:
+        List of sales data records for the specified SKU
+    """
+    # Load environment variables
+    load_dotenv()
+    token = os.getenv("ASTRA_DB_TOKEN")
+    endpoint = "https://78448361-64f9-4771-a1a4-74e8f06c6259-us-east-2.apps.astra.datastax.com"
+    if not token or not endpoint:
+        raise HTTPException(status_code=500, detail="ASTRA_DB_TOKEN and ASTRA_DB_ENDPOINT must be set")
+
+    try:
+        # Initialize the AstraDB client and connect
+        client = DataAPIClient(token)
+        db = client.get_database_by_api_endpoint(endpoint)
+        collection_name = os.getenv("ASTRA_POS_COLLECTION", "pos_sales_data")
+        collection = db.get_collection(collection_name)
+
+        # Set filter to find records with the specified SKU_ID
+        find_filter = {"SKU_ID": sku_id}
+        
+        # Execute query with a reasonable limit
+        cursor = collection.find(find_filter, limit=100)
+
+        # Convert cursor to list
+        results = list(cursor)
+        logger.info(f"Found {len(results)} sales records for SKU_ID: {sku_id}")
+        
+        return results
+    except Exception as e:
+        logger.error(f"Error fetching sales data for SKU_ID {sku_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
