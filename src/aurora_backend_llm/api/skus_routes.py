@@ -16,18 +16,27 @@ router = APIRouter(prefix="/api/skus", tags=["SKUs"])
 # Define SKU data model
 class SKUData(BaseModel):
     id: Optional[str] = Field(None, description="Unique identifier for the SKU record")
-    sku_id: Optional[str] = Field(None, description="SKU identifier")
-    name: Optional[str] = Field(None, description="Product name")
-    description: Optional[str] = Field(None, description="Product description")
-    category: Optional[str] = Field(None, description="Product category")
-    price: Optional[Union[float, str]] = Field(None, description="Price per unit")
-    cost: Optional[Union[float, str]] = Field(None, description="Cost per unit")
-    stock_quantity: Optional[Union[int, str]] = Field(None, description="Available stock quantity")
-    supplier_id: Optional[str] = Field(None, description="Supplier identifier")
-    brand: Optional[str] = Field(None, description="Product brand")
-    upc: Optional[str] = Field(None, description="Universal Product Code")
-    created_at: Optional[str] = Field(None, description="Creation date")
-    updated_at: Optional[str] = Field(None, description="Last update date")
+    SKU: Optional[str] = Field(None, description="SKU identifier")
+    Product_Name: Optional[str] = Field(None, description="Product name")
+    Brand: Optional[str] = Field(None, description="Product brand")
+    Category: Optional[str] = Field(None, description="Product category")
+    Size: Optional[str] = Field(None, description="Product size")
+    Color: Optional[str] = Field(None, description="Product color")
+    Sex: Optional[str] = Field(None, description="Product gender")
+    Pattern: Optional[str] = Field(None, description="Product pattern")
+    Fabric: Optional[str] = Field(None, description="Product fabric")
+    Fit: Optional[str] = Field(None, description="Product fit type")
+    Season: Optional[str] = Field(None, description="Seasonal classification")
+    Price: Optional[Union[float, str]] = Field(None, description="Price per unit")
+    Stock: Optional[Union[int, str]] = Field(None, description="Available stock quantity")
+    Launch_Date: Optional[str] = Field(None, description="Product launch date")
+    Eco_Tag: Optional[str] = Field(None, description="Environmental classification")
+    Country_Origin: Optional[str] = Field(None, description="Country of origin")
+    UPC: Optional[str] = Field(None, description="Universal Product Code")
+    Style_Collection: Optional[str] = Field(None, description="Style collection name")
+    Supplier: Optional[str] = Field(None, description="Supplier name")
+    Care_Instructions: Optional[str] = Field(None, description="Product care instructions")
+    Image_URL: Optional[str] = Field(None, description="Product image URL")
     
     class Config:
         from_attributes = True
@@ -36,31 +45,40 @@ class SKUData(BaseModel):
         extra = "allow"
         json_schema_extra = {"examples": [
             {
-                "_id": "86a77d18-5d89-4bfd-a77d-185d890bfd3a",
-                "sku_id": "SKU001",
-                "name": "Premium T-Shirt",
-                "description": "High quality cotton t-shirt",
-                "category": "Apparel",
-                "price": "29.99",
-                "cost": "12.50",
-                "stock_quantity": "150",
-                "supplier_id": "SUP123",
-                "brand": "Fashion Brand",
-                "upc": "123456789012",
-                "created_at": "2024-01-15",
-                "updated_at": "2024-06-01"
+                "_id": "8836ecca-78d2-454e-b6ec-ca78d2f54ea4",
+                "SKU": "U-SK-M-CRE-FLR-COT-25W",
+                "Product_Name": "Floral Cotton Skirt",
+                "Brand": "Carter's",
+                "Category": "Skirt",
+                "Size": "M",
+                "Color": "Cream",
+                "Sex": "Unisex",
+                "Pattern": "Floral",
+                "Fabric": "Cotton",
+                "Fit": "Slim",
+                "Season": "Winter",
+                "Price": "63.43",
+                "Stock": "129",
+                "Launch_Date": "2025-09-09",
+                "Eco_Tag": "Sustainable",
+                "Country_Origin": "Mongolia",
+                "UPC": "1234567890017",
+                "Style_Collection": "Fall Flannels",
+                "Supplier": "Supplier B",
+                "Care_Instructions": "Dry Clean Only",
+                "Image_URL": "imgurl.com/18"
             }
         ]}
         
     # Add model validators to convert string to numeric types if needed
-    @field_validator('stock_quantity', mode='before')
+    @field_validator('Stock', mode='before')
     @classmethod
     def validate_quantity(cls, v):
         if isinstance(v, str) and v.isdigit():
             return int(v)
         return v
         
-    @field_validator('price', 'cost', mode='before')
+    @field_validator('Price', mode='before')
     @classmethod
     def validate_price(cls, v):
         if isinstance(v, str):

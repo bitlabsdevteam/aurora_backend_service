@@ -15,20 +15,19 @@ router = APIRouter(prefix="/api/pos", tags=["POS"])
 
 # Define POS sales data model
 class POSSaleData(BaseModel):
-    id: Optional[str] = Field(None, description="Unique identifier for the sale record")
-    transaction_id: Optional[str] = Field(None, description="Transaction identifier")
-    store_id: Optional[str] = Field(None, description="Store identifier")
-    date: Optional[str] = Field(None, description="Date of transaction")
-    product_id: Optional[str] = Field(None, description="Product identifier")
-    product_name: Optional[str] = Field(None, description="Name of the product")
-    quantity: Optional[Union[int, str]] = Field(None, description="Quantity of items sold")
-    price: Optional[Union[float, str]] = Field(None, description="Price per unit")
-    total: Optional[Union[float, str]] = Field(None, description="Total amount for this line item")
-    staff_id: Optional[str] = Field(None, description="Staff identifier who processed the sale")
-    payment_method: Optional[str] = Field(None, description="Method of payment")
+    id: Optional[str] = Field(None, alias="_id", description="Unique identifier for the sale record")
+    Transaction_ID: Optional[str] = Field(None, description="Transaction identifier")
+    Date: Optional[str] = Field(None, description="Date of transaction")
+    SKU_ID: Optional[str] = Field(None, description="Product SKU identifier")
+    Store_ID: Optional[str] = Field(None, description="Store identifier")
+    Store_Name: Optional[str] = Field(None, description="Name of the store")
+    Teller_ID: Optional[str] = Field(None, description="Teller identifier who processed the sale")
+    Teller_Name: Optional[str] = Field(None, description="Name of the teller")
+    Original_Cost: Optional[Union[float, str]] = Field(None, description="Original cost per unit")
+    Sold_Cost: Optional[Union[float, str]] = Field(None, description="Sold cost per unit")
+    Quantity_Sold: Optional[Union[int, str]] = Field(None, description="Quantity of items sold")
+    Payment_Method: Optional[str] = Field(None, description="Method of payment")
     
-    # We can't use _id directly in Pydantic, but we'll handle it in the field_validator and transform data
-
     class Config:
         from_attributes = True
         populate_by_name = True
@@ -36,29 +35,30 @@ class POSSaleData(BaseModel):
         extra = "allow"
         json_schema_extra = {"examples": [
             {
-                "_id": "86a77d18-5d89-4bfd-a77d-185d890bfd3a",
-                "transaction_id": "T008",
-                "store_id": "S001",
-                "date": "2024-01-15",
-                "product_id": "P108",
-                "product_name": "Shorts",
-                "quantity": "1",
-                "price": "3000",
-                "total": "3000",
-                "staff_id": "ST02",
-                "payment_method": "Cash"
+                "_id": "20bcc578-c09e-43ea-bcc5-78c09ef3ea4e",
+                "Transaction_ID": "120037",
+                "Date": "2025-09-04",
+                "SKU_ID": "M-JN-32-BLK-SLD-COT-25A",
+                "Store_ID": "S001",
+                "Store_Name": "Tokyo Main",
+                "Teller_ID": "T104",
+                "Teller_Name": "Kobayashi Ryo",
+                "Original_Cost": "82.00",
+                "Sold_Cost": "98.40",
+                "Quantity_Sold": "2",
+                "Payment_Method": "E-money"
             }
         ]}
         
     # Add model validators to convert string to numeric types if needed
-    @field_validator('quantity', mode='before')
+    @field_validator('Quantity_Sold', mode='before')
     @classmethod
     def validate_quantity(cls, v):
         if isinstance(v, str) and v.isdigit():
             return int(v)
         return v
         
-    @field_validator('price', 'total', mode='before')
+    @field_validator('Original_Cost', 'Sold_Cost', mode='before')
     @classmethod
     def validate_price(cls, v):
         if isinstance(v, str):
@@ -111,19 +111,8 @@ async def fetch_pos_sales_data(payload: Dict[str, Any] = Body(...)):
         results = list(cursor)
         logger.info(f"Found {len(results)} POS sales records")
         
-        # Transform data to ensure _id is mapped to id for validation
-        transformed_results = []
-        for item in results:
-            # Create a copy to avoid modifying the original
-            new_item = dict(item)
-            
-            # Ensure id field exists
-            if '_id' in new_item and 'id' not in new_item:
-                new_item['id'] = new_item['_id']
-                
-            transformed_results.append(new_item)
-        
-        return transformed_results
+        # No need to transform _id field anymore as we're using it directly in the model
+        return results
     except Exception as e:
         logger.error(f"Error fetching POS sales data: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") 
