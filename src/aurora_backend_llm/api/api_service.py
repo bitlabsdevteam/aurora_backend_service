@@ -126,6 +126,10 @@ app.include_router(pos_router)
 from aurora_backend_llm.api.skus_routes import router as skus_router
 app.include_router(skus_router)
 
+# Include GraphQL router for SKU data
+from aurora_backend_llm.api.graphql_schema import graphql_router
+app.include_router(graphql_router, prefix="/api/graphql")
+
 # Include Main routes for Langflow API
 from aurora_backend_llm.api.main_routes import router as main_router
 app.include_router(main_router)

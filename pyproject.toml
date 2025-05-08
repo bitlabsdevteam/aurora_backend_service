@@ -15,9 +15,24 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
     "email-validator>=2.0.0",
-    "fastapi>=0.100.0",
-    "uvicorn>=0.20.0",
-    "astrapy>=2.0.0"
+    "fastapi>=0.108.0",
+    "uvicorn[standard]>=0.25.0",
+    "SQLAlchemy>=2.0.25",
+    "alembic>=1.13.1",
+    "python-multipart>=0.0.7",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "email-validator>=2.1.0.post1",
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "redis>=5.0.1",
+    "rq>=1.15.1",
+    "requests>=2.31.0",
+    "Flask>=3.0.0",
+    "Flask-SQLAlchemy>=3.1.1",
+    "Flask-Login>=0.6.3",
+    "astrapy>=0.5.0",
+    "strawberry-graphql>=0.266.1",
 ]
 
 [project.scripts]
