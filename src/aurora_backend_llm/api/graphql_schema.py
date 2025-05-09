@@ -35,7 +35,23 @@ class SKU:
     careInstructions: Optional[str] = strawberry.field(description="Product care instructions")
     imageUrl: Optional[str] = strawberry.field(description="Product image URL")
 
-# Field name mapping from GraphQL camelCase to AstraDB formats
+# Define GraphQL POS Sale type with camelCase field names
+@strawberry.type
+class POSSale:
+    id: Optional[str] = strawberry.field(description="Unique identifier for the sale record")
+    transactionId: Optional[str] = strawberry.field(description="Transaction identifier")
+    date: Optional[str] = strawberry.field(description="Date of transaction")
+    skuId: Optional[str] = strawberry.field(description="Product SKU identifier")
+    storeId: Optional[str] = strawberry.field(description="Store identifier")
+    storeName: Optional[str] = strawberry.field(description="Name of the store")
+    tellerId: Optional[str] = strawberry.field(description="Teller identifier who processed the sale")
+    tellerName: Optional[str] = strawberry.field(description="Name of the teller")
+    originalCost: Optional[float] = strawberry.field(description="Original cost per unit")
+    soldCost: Optional[float] = strawberry.field(description="Sold cost per unit")
+    quantitySold: Optional[int] = strawberry.field(description="Quantity of items sold")
+    paymentMethod: Optional[str] = strawberry.field(description="Method of payment")
+
+# Field name mapping from GraphQL camelCase to AstraDB formats for SKU
 field_map = {
     "sku": "SKU",
     "productName": "Product_Name",
@@ -60,8 +76,24 @@ field_map = {
     "imageUrl": "Image_URL"
 }
 
+# Field name mapping from GraphQL camelCase to AstraDB formats for POS Sales
+pos_field_map = {
+    "transactionId": "Transaction_ID",
+    "date": "Date",
+    "skuId": "SKU_ID",
+    "storeId": "Store_ID",
+    "storeName": "Store_Name",
+    "tellerId": "Teller_ID",
+    "tellerName": "Teller_Name",
+    "originalCost": "Original_Cost",
+    "soldCost": "Sold_Cost",
+    "quantitySold": "Quantity_Sold",
+    "paymentMethod": "Payment_Method"
+}
+
 # Reverse mapping to convert AstraDB fields to GraphQL fields
 reverse_field_map = {v: k for k, v in field_map.items()}
+reverse_pos_field_map = {v: k for k, v in pos_field_map.items()}
 
 # Define GraphQL queries
 @strawberry.type
@@ -237,6 +269,124 @@ class Query:
         except Exception as e:
             logger.error(f"Error searching SKUs data: {e}")
             raise Exception(f"Error searching SKUs: {str(e)}")
+    
+    @strawberry.field(description="Get POS sales data by SKU ID")
+    async def sales_by_sku(self, sku_id: str, limit: Optional[int] = 100) -> List[POSSale]:
+        # Load environment variables
+        load_dotenv()
+        token = os.getenv("ASTRA_DB_TOKEN")
+        endpoint = "https://78448361-64f9-4771-a1a4-74e8f06c6259-us-east-2.apps.astra.datastax.com"
+        if not token or not endpoint:
+            raise Exception("ASTRA_DB_TOKEN and ASTRA_DB_ENDPOINT must be set")
+
+        try:
+            # Initialize the AstraDB client and connect
+            client = DataAPIClient(token)
+            db = client.get_database_by_api_endpoint(endpoint)
+            collection_name = os.getenv("ASTRA_POS_COLLECTION", "pos_sales_data")
+            collection = db.get_collection(collection_name)
+
+            # Query for sales with the specified SKU_ID
+            cursor = collection.find({"SKU_ID": sku_id}, limit=limit)
+            results = list(cursor)
+            
+            logger.info(f"Found {len(results)} POS sales records for SKU_ID: {sku_id}")
+            
+            # Transform data
+            pos_sale_objects = []
+            for item in results:
+                # Ensure id field exists
+                if '_id' in item and 'id' not in item:
+                    item['id'] = item['_id']
+                    
+                # Convert numeric strings to proper types
+                if 'Quantity_Sold' in item and isinstance(item['Quantity_Sold'], str) and item['Quantity_Sold'].isdigit():
+                    item['Quantity_Sold'] = int(item['Quantity_Sold'])
+                    
+                for field in ['Original_Cost', 'Sold_Cost']:
+                    if field in item and isinstance(item[field], str):
+                        try:
+                            item[field] = float(item[field])
+                        except ValueError:
+                            pass
+                
+                # Convert AstraDB field names to GraphQL camelCase
+                transformed_item = {}
+                for key, value in item.items():
+                    if key == 'id' or key == '_id':
+                        transformed_item['id'] = value
+                    elif key in reverse_pos_field_map:
+                        transformed_item[reverse_pos_field_map[key]] = value
+                    else:
+                        # Keep fields that don't have a mapping as is
+                        transformed_item[key] = value
+                        
+                # Create POSSale object
+                pos_sale_objects.append(POSSale(**transformed_item))
+                
+            return pos_sale_objects
+        except Exception as e:
+            logger.error(f"Error fetching POS sales data: {e}")
+            raise Exception(f"Error fetching POS sales: {str(e)}")
+            
+    @strawberry.field(description="Get all POS sales data with optional limit")
+    async def sales(self, limit: Optional[int] = 100) -> List[POSSale]:
+        # Load environment variables
+        load_dotenv()
+        token = os.getenv("ASTRA_DB_TOKEN")
+        endpoint = "https://78448361-64f9-4771-a1a4-74e8f06c6259-us-east-2.apps.astra.datastax.com"
+        if not token or not endpoint:
+            raise Exception("ASTRA_DB_TOKEN and ASTRA_DB_ENDPOINT must be set")
+
+        try:
+            # Initialize the AstraDB client and connect
+            client = DataAPIClient(token)
+            db = client.get_database_by_api_endpoint(endpoint)
+            collection_name = os.getenv("ASTRA_POS_COLLECTION", "pos_sales_data")
+            collection = db.get_collection(collection_name)
+
+            # Query for all sales with a limit
+            cursor = collection.find({}, limit=limit)
+            results = list(cursor)
+            
+            logger.info(f"Found {len(results)} POS sales records")
+            
+            # Transform data
+            pos_sale_objects = []
+            for item in results:
+                # Ensure id field exists
+                if '_id' in item and 'id' not in item:
+                    item['id'] = item['_id']
+                    
+                # Convert numeric strings to proper types
+                if 'Quantity_Sold' in item and isinstance(item['Quantity_Sold'], str) and item['Quantity_Sold'].isdigit():
+                    item['Quantity_Sold'] = int(item['Quantity_Sold'])
+                    
+                for field in ['Original_Cost', 'Sold_Cost']:
+                    if field in item and isinstance(item[field], str):
+                        try:
+                            item[field] = float(item[field])
+                        except ValueError:
+                            pass
+                
+                # Convert AstraDB field names to GraphQL camelCase
+                transformed_item = {}
+                for key, value in item.items():
+                    if key == 'id' or key == '_id':
+                        transformed_item['id'] = value
+                    elif key in reverse_pos_field_map:
+                        transformed_item[reverse_pos_field_map[key]] = value
+                    else:
+                        # Keep fields that don't have a mapping as is
+                        transformed_item[key] = value
+                        
+                # Create POSSale object
+                pos_sale_objects.append(POSSale(**transformed_item))
+                
+            return pos_sale_objects
+        except Exception as e:
+            logger.error(f"Error fetching POS sales data: {e}")
+            raise Exception(f"Error fetching POS sales: {str(e)}")
 
 # Create the GraphQL schema
 schema = strawberry.Schema(query=Query)
